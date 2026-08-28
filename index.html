@@ -183,8 +183,10 @@
   .settings-quick-btn svg{width:18px;height:18px;}
 
   /* budget rings (capsule liquid-fill, mobile home) */
-  .budget-rings{display:flex;gap:16px;margin-top:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;justify-content:center;}
-  .ring-item{flex:1 1 0;min-width:70px;max-width:130px;display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .budget-rings{display:flex;gap:16px;margin-top:20px;margin-left:-40px;margin-right:-40px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 40px 28px;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none;}
+  .budget-rings::-webkit-scrollbar{display:none;}
+  .ring-item{flex:1 1 0;min-width:70px;max-width:130px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;}
+  .ring-item:active{opacity:.7;}
   .ring-spent{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;}
   .ring-cap{width:100%;height:200px;border-radius:999px;background:rgba(0,0,0,0.045);position:relative;overflow:hidden;flex-shrink:0;}
   .ring-fill{position:absolute;left:0;right:0;bottom:0;opacity:.85;}
@@ -2481,13 +2483,54 @@ function renderBudgetRingsMobile(){
     var pct = limite>0 ? Math.min(100, spent/limite*100) : 0;
     var warn = pct>=90;
     var color = warn ? {fg:'var(--negative)'} : categoryColor(b.categoria);
-    return '<div class="ring-item">'+
+    return '<div class="ring-item" data-categoria="'+escapeHtml(b.categoria)+'" data-action="showbudgetcat">'+
       '<span class="ring-spent">'+Math.round(spent)+'</span>'+
       '<div class="ring-cap"><div class="ring-fill" style="height:'+pct+'%;background:'+color.fg+';"></div><span class="ring-emoji">'+categoryEmoji(b.categoria)+'</span></div>'+
       '<span class="ring-cat">'+escapeHtml(b.categoria)+'</span>'+
       '<span class="ring-limit">di '+Math.round(limite)+'</span>'+
       '</div>';
   }).join('');
+  wrap.querySelectorAll('[data-action="showbudgetcat"]').forEach(function(item){
+    item.addEventListener('click', function(){
+      openBudgetCategoryModal(item.dataset.categoria);
+    });
+  });
+}
+function openBudgetCategoryModal(categoria){
+  var now = new Date();
+  var txs = txByMonth('uscita', now, categoria).slice().sort(function(a,b){
+    var byData = (b.data||'').localeCompare(a.data||'');
+    if(byData!==0) return byData;
+    return (b.createdAt||'').localeCompare(a.createdAt||'');
+  });
+  var spent = sumTx(txs);
+  var budget = state.budgets.find(function(b){ return b.categoria===categoria; });
+  var limite = budget ? Number(budget.limite)||0 : 0;
+  var monthLabel = now.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  monthLabel = monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1);
+  var color = categoryColor(categoria);
+
+  var itemsHtml = txs.length===0 ? '<p class="empty">Nessuna transazione questo mese.</p>' : txs.map(function(t){
+    var dateLabel = t.data ? new Date(t.data+'T00:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'short'}) : '—';
+    var contoTx = t.contoId ? state.accounts.find(function(a){ return a.id===t.contoId; }) : null;
+    var contoLabel = contoTx ? contoTx.nome : 'Nessun conto';
+    return '<div class="tx-row">'+
+      '<div class="tx-icon uscita" style="background:'+color.bg+';color:'+color.fg+';">'+categoryEmoji(categoria)+'</div>'+
+      '<div class="tx-mid"><div class="tx-name">'+escapeHtml(t.descrizione||'—')+'</div><div class="tx-tag">'+dateLabel+' · '+escapeHtml(contoLabel)+'</div></div>'+
+      '<div class="tx-amt neg">-'+fmtEUR(t.importo)+'</div>'+
+      '</div>';
+  }).join('');
+
+  var bodyHtml =
+    '<p class="sub-heading">'+monthLabel+' · '+fmtEUR(spent)+(limite>0?' di '+fmtEUR(limite):'')+'</p>'+
+    itemsHtml;
+
+  document.getElementById('modalTitle').textContent = categoryEmoji(categoria)+' '+categoria;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalConfirm').style.display = 'none';
+  document.getElementById('modalCancel').textContent = 'Chiudi';
+  modalOnSubmit = null;
+  document.getElementById('modalOverlay').classList.add('open');
 }
 
 /* ---------- render: subscriptions ---------- */
