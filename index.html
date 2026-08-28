@@ -251,13 +251,13 @@
   .sub-row{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line);}
   .sub-row:last-child{border-bottom:none;}
   .sub-mid{flex:1;min-width:0;}
-  .sub-name-input{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .sub-date{font-size:11px;color:var(--ink-faint);margin-top:2px;}
-  .countdown{display:inline-block;min-width:80px;box-sizing:border-box;font-size:10px;padding:3px 9px;border-radius:10px;background:rgba(0,0,0,0.05);color:var(--ink-soft);white-space:nowrap;font-weight:500;text-align:center;}
-  .countdown.due{background:#F5E4D0;color:#D08A3E;font-weight:600;}
-  .countdown.overdue{background:var(--negative-soft);color:var(--negative);font-weight:600;}
-  .countdown.paid{background:var(--positive-soft);color:var(--positive);font-weight:600;}
-  .countdown-hidden{visibility:hidden;}
+  .sub-name-input{font-size:13px;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25;word-break:break-word;}
+  .sub-date-row{display:flex;align-items:center;gap:6px;margin-top:2px;min-width:0;}
+  .sub-date{font-size:11px;color:var(--ink-faint);white-space:nowrap;flex-shrink:0;}
+  .countdown-inline{font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(0,0,0,0.05);color:var(--ink-soft);white-space:nowrap;font-weight:600;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .countdown-inline.due{background:#F5E4D0;color:#D08A3E;}
+  .countdown-inline.overdue{background:var(--negative-soft);color:var(--negative);}
+  .countdown-inline.paid{display:none;}
   .paid-toggle-btn{width:22px;height:22px;min-width:22px;border-radius:50%;border:1.5px solid var(--ink-faint);background:transparent;color:transparent;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-weight:700;padding:0;}
   .paid-toggle-btn.due{border-color:#D08A3E;}
   .paid-toggle-btn.overdue{border-color:var(--negative);}
@@ -733,7 +733,7 @@
     .receivable-row .amt{font-size:16px;font-weight:700;}
     .sub-date{font-size:13px;white-space:nowrap;}
     .sub-amt-input{font-size:15px;min-width:0;}
-    .countdown{font-size:11px;min-width:0;padding:4px 10px;}
+    .countdown-inline{font-size:11px;padding:3px 10px;}
     .paid-toggle-btn{width:26px;height:26px;min-width:26px;}
     .mini-btn{font-size:12px;padding:7px 14px;border-radius:14px;}
     .row-del{font-size:19px;padding:0 6px;}
@@ -2532,7 +2532,7 @@ function renderSubscriptions(){
     var paid = isSubPaid(s.id, thisMonthOcc);
     var overdue = !paid && thisMonthOcc < todayMid;
     var statusClass = paid ? 'paid' : (overdue ? 'overdue' : 'due');
-    var countdownHtml = '<span class="countdown '+statusClass+(paid?' countdown-hidden':'')+'">'+countLabel+'</span>';
+    var countdownHtml = '<span class="countdown-inline '+statusClass+'">'+countLabel+'</span>';
     var arrears = computeSubArrears(s, todayMid);
     var arrearsHtml = arrears.length>0 ? '<button class="sub-arrears-badge" data-subid="'+s.id+'" data-action="showarrears" type="button">'+arrears.length+' arretrat'+(arrears.length===1?'o':'i')+' · '+fmtEUR(arrears.length*(Number(s.importo)||0))+'</button>' : '';
     var sharedHtml = s.condivisoCon ? '<span class="sub-shared-badge" title="Diviso con '+escapeHtml(s.condivisoCon)+', quota '+fmtEUR(s.quotaAltrui||0)+'">↔ '+escapeHtml(s.condivisoCon)+'</span>' : '';
@@ -2540,8 +2540,7 @@ function renderSubscriptions(){
       '<button class="tx-row-delete-behind" type="button">Elimina</button>'+
       '<div class="tx-row-content sub-row editable-row" data-idx="'+item.idx+'" data-action="editsub">'+
         '<div class="tx-icon uscita">📱</div>'+
-        '<div class="sub-mid"><div class="sub-name-input">'+escapeHtml(s.nome)+'</div><div class="sub-date">'+dateLabel+'</div>'+sharedHtml+arrearsHtml+'</div>'+
-        countdownHtml+
+        '<div class="sub-mid"><div class="sub-name-input">'+escapeHtml(s.nome)+'</div><div class="sub-date-row"><span class="sub-date">'+dateLabel+'</span>'+countdownHtml+'</div>'+sharedHtml+arrearsHtml+'</div>'+
         '<button class="paid-toggle-btn '+statusClass+'" data-subid="'+s.id+'" data-action="togglesubpaid" title="Segna pagato/non pagato">'+(paid?'✓':'')+'</button>'+
         '<span class="sub-amt-input">'+fmtEUR(s.importo)+'</span>'+
         '<button class="row-del tx-row-del-desktop" data-idx="'+item.idx+'" data-action="delsub">×</button>'+
