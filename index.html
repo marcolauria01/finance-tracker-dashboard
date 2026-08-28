@@ -564,6 +564,10 @@
   }
   .modal-field input::placeholder{color:#A3A3AA;}
   .modal-field input:focus,.modal-field select:focus{outline:none;background:#FFFFFF;border-color:var(--accent);}
+  .daygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .daygrid-btn{aspect-ratio:1;border:none;border-radius:50%;background:#F2F2F5;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;transition:transform .08s ease, background .15s ease, color .15s ease;font-family:inherit;padding:0;}
+  .daygrid-btn:active{transform:scale(0.88);}
+  .daygrid-btn.selected{background:var(--accent);color:#fff;font-weight:700;}
   .date-field-inner{position:relative;width:100%;max-width:100%;overflow:hidden;border-radius:12px;box-sizing:border-box;}
   .date-field-inner input[type="date"]{color:transparent;-webkit-text-fill-color:transparent;width:100%;max-width:100%;min-width:0;box-sizing:border-box;display:block;}
   .date-field-display{position:absolute;left:14px;right:36px;top:0;bottom:0;display:flex;align-items:center;font-size:17px;color:var(--ink);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1599,6 +1603,13 @@ function renderModalFields(fields){
       inner = '<label>'+f.label+'</label><select id="mf_'+f.id+'">'+opts+'</select>';
     } else if(f.type==='date'){
       inner = '<label>'+f.label+'</label><div class="date-field-inner"><input id="mf_'+f.id+'" type="date" value="'+(f.value!=null?f.value:'')+'"><span class="date-field-display" id="mfdisp_'+f.id+'"></span></div>';
+    } else if(f.type==='daygrid'){
+      var selDay = Number(f.value)||1;
+      var dayBtns = '';
+      for(var dgi=1; dgi<=31; dgi++){
+        dayBtns += '<button type="button" class="daygrid-btn'+(dgi===selDay?' selected':'')+'" data-day="'+dgi+'">'+dgi+'</button>';
+      }
+      inner = '<label>'+f.label+'</label><input type="hidden" id="mf_'+f.id+'" value="'+selDay+'"><div class="daygrid" id="mfgrid_'+f.id+'">'+dayBtns+'</div>';
     } else {
       inner = '<label>'+f.label+'</label><input id="mf_'+f.id+'" type="'+f.type+'" '+(f.step?'step="'+f.step+'"':'')+' placeholder="'+(f.placeholder||'')+'" value="'+(f.value!=null?f.value:'')+'">';
     }
@@ -1622,6 +1633,19 @@ function renderModalFields(fields){
       var dateEl = document.getElementById('mf_'+f.id);
       var dispEl = document.getElementById('mfdisp_'+f.id);
       if(dateEl && dispEl) wireDateDisplay(dateEl, dispEl);
+    }
+    if(f.type==='daygrid'){
+      var grid = document.getElementById('mfgrid_'+f.id);
+      var hiddenInput = document.getElementById('mf_'+f.id);
+      if(grid && hiddenInput){
+        grid.querySelectorAll('.daygrid-btn').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            grid.querySelectorAll('.daygrid-btn').forEach(function(b){ b.classList.remove('selected'); });
+            this.classList.add('selected');
+            hiddenInput.value = this.dataset.day;
+          });
+        });
+      }
     }
   });
   refreshConditionals();
@@ -2604,7 +2628,7 @@ function openSubModal(idx, defaultGiorno){
   openModal(s ? 'Modifica abbonamento' : 'Nuovo abbonamento', [
     {id:'nome', label:'Nome', type:'text', placeholder:'es. Netflix', value: s ? s.nome : ''},
     {id:'importo', label:'Importo (€)', type:'number', step:'0.01', placeholder:'0.00', value: s ? s.importo : ''},
-    {id:'giorno', label:'Giorno del mese (1-31)', type:'number', step:'1', value: s ? s.giorno : (defaultGiorno || '1')},
+    {id:'giorno', label:'Giorno del mese', type:'daygrid', value: s ? s.giorno : (defaultGiorno || '1')},
     {id:'condivisoCon', label:'Diviso con (opzionale)', type:'text', placeholder:'es. Nome persona', value: s ? s.condivisoCon : ''},
     {id:'quotaAltrui', label:'Quota della persona (€)', type:'number', step:'0.01', placeholder:'0.00', value: (s && s.quotaAltrui!=null) ? s.quotaAltrui : ''}
   ], async function(v){
