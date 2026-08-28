@@ -186,7 +186,7 @@
   .settings-quick-btn svg{width:18px;height:18px;}
 
   /* budget rings (capsule liquid-fill, mobile home) */
-  .budget-rings{display:flex;gap:16px;margin-top:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:14px;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none;}
+  .budget-rings{display:flex;gap:16px;margin-top:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;padding-bottom:14px;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none;}
   .budget-rings::-webkit-scrollbar{display:none;}
   .ring-item{flex:1 1 0;min-width:70px;max-width:130px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;}
   .ring-item:active{opacity:.7;}
@@ -1190,6 +1190,15 @@
       <span><span class="cal-dot paid"></span>Pagato</span>
       <span><span class="cal-dot reminder"></span>Promemoria</span>
     </div>
+  </div>
+</div>
+
+<div class="mobile-menu-overlay app-root-el auth-hidden" id="budgetCategorySheetOverlay">
+  <div class="glass mobile-menu-sheet">
+    <div class="mobile-menu-sheet-handle"></div>
+    <p class="card-title" id="budgetCategorySheetTitle">—</p>
+    <p class="sub-heading" id="budgetCategorySheetSummary"></p>
+    <div id="budgetCategorySheetBody"></div>
   </div>
 </div>
 
@@ -2495,11 +2504,11 @@ function renderBudgetRingsMobile(){
   }).join('');
   wrap.querySelectorAll('[data-action="showbudgetcat"]').forEach(function(item){
     item.addEventListener('click', function(){
-      openBudgetCategoryModal(item.dataset.categoria);
+      openBudgetCategorySheet(item.dataset.categoria);
     });
   });
 }
-function openBudgetCategoryModal(categoria){
+function openBudgetCategorySheet(categoria){
   var now = new Date();
   var txs = txByMonth('uscita', now, categoria).slice().sort(function(a,b){
     var byData = (b.data||'').localeCompare(a.data||'');
@@ -2524,16 +2533,10 @@ function openBudgetCategoryModal(categoria){
       '</div>';
   }).join('');
 
-  var bodyHtml =
-    '<p class="sub-heading">'+monthLabel+' · '+fmtEUR(spent)+(limite>0?' di '+fmtEUR(limite):'')+'</p>'+
-    itemsHtml;
-
-  document.getElementById('modalTitle').textContent = categoryEmoji(categoria)+' '+categoria;
-  document.getElementById('modalBody').innerHTML = bodyHtml;
-  document.getElementById('modalConfirm').style.display = 'none';
-  document.getElementById('modalCancel').textContent = 'Chiudi';
-  modalOnSubmit = null;
-  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('budgetCategorySheetTitle').textContent = categoryEmoji(categoria)+' '+categoria;
+  document.getElementById('budgetCategorySheetSummary').textContent = monthLabel+' · '+fmtEUR(spent)+(limite>0?' di '+fmtEUR(limite):'');
+  document.getElementById('budgetCategorySheetBody').innerHTML = itemsHtml;
+  openSheet('budgetCategorySheetOverlay');
 }
 
 /* ---------- render: subscriptions ---------- */
