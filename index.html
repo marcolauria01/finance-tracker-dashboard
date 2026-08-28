@@ -263,6 +263,15 @@
   .paid-toggle-btn.overdue{border-color:var(--negative);}
   .paid-toggle-btn.paid{background:var(--positive);border-color:var(--positive);color:#fff;}
   .sub-amt-input{font-size:12px;text-align:right;color:var(--ink-soft);white-space:nowrap;min-width:62px;display:inline-block;}
+  /* abbonamento diviso con qualcuno / con mesi arretrati non pagati */
+  .sub-shared-badge,.sub-arrears-badge{
+    display:inline-flex;align-items:center;margin-top:4px;margin-right:6px;
+    font-size:10px;padding:2px 8px;border-radius:8px;white-space:nowrap;
+    font-weight:600;border:none;font-family:inherit;
+  }
+  .sub-shared-badge{background:var(--accent-soft);color:var(--accent);cursor:default;}
+  .sub-arrears-badge{background:var(--negative-soft);color:var(--negative);cursor:pointer;transition:transform .08s ease;}
+  .sub-arrears-badge:active{transform:scale(0.94);}
 
   /* transactions */
   .tx-select-controls{display:flex;align-items:center;gap:8px;}
@@ -1358,7 +1367,7 @@ function mapBudget(r){ return {id:r.id, categoria:r.categoria, limite:Number(r.l
 function mapGoal(r){ return {id:r.id, nome:r.nome, tipo:r.tipo, target:Number(r.target), current:Number(r.current)}; }
 function mapReceivable(r){ return {id:r.id, cliente:r.cliente, importo:Number(r.importo), stato:r.stato, txId:r.tx_id}; }
 function mapDebt(r){ return {id:r.id, creditore:r.creditore, totale:Number(r.totale), pagato:Number(r.pagato)}; }
-function mapSub(r){ return {id:r.id, nome:r.nome, importo:Number(r.importo), giorno:r.giorno}; }
+function mapSub(r){ return {id:r.id, nome:r.nome, importo:Number(r.importo), giorno:r.giorno, condivisoCon:r.condiviso_con||'', quotaAltrui:r.quota_altrui!=null?Number(r.quota_altrui):null, createdAt:r.created_at||null}; }
 function mapInvestment(r){
   return {id:r.id, nome:r.nome, tipo:r.tipo,
     valore: r.valore!=null ? Number(r.valore) : null,
@@ -2500,11 +2509,14 @@ function renderSubscriptions(){
     var overdue = !paid && thisMonthOcc < todayMid;
     var statusClass = paid ? 'paid' : (overdue ? 'overdue' : 'due');
     var countdownHtml = '<span class="countdown '+statusClass+(paid?' countdown-hidden':'')+'">'+countLabel+'</span>';
+    var arrears = computeSubArrears(s, todayMid);
+    var arrearsHtml = arrears.length>0 ? '<button class="sub-arrears-badge" data-subid="'+s.id+'" data-action="showarrears" type="button">'+arrears.length+' arretrat'+(arrears.length===1?'o':'i')+' · '+fmtEUR(arrears.length*(Number(s.importo)||0))+'</button>' : '';
+    var sharedHtml = s.condivisoCon ? '<span class="sub-shared-badge" title="Diviso con '+escapeHtml(s.condivisoCon)+', quota '+fmtEUR(s.quotaAltrui||0)+'">↔ '+escapeHtml(s.condivisoCon)+'</span>' : '';
     return '<div class="tx-row-wrap" data-idx="'+item.idx+'">'+
       '<button class="tx-row-delete-behind" type="button">Elimina</button>'+
       '<div class="tx-row-content sub-row editable-row" data-idx="'+item.idx+'" data-action="editsub">'+
         '<div class="tx-icon uscita">📱</div>'+
-        '<div class="sub-mid"><div class="sub-name-input">'+escapeHtml(s.nome)+'</div><div class="sub-date">'+dateLabel+'</div></div>'+
+        '<div class="sub-mid"><div class="sub-name-input">'+escapeHtml(s.nome)+'</div><div class="sub-date">'+dateLabel+'</div>'+sharedHtml+arrearsHtml+'</div>'+
         countdownHtml+
         '<button class="paid-toggle-btn '+statusClass+'" data-subid="'+s.id+'" data-action="togglesubpaid" title="Segna pagato/non pagato">'+(paid?'✓':'')+'</button>'+
         '<span class="sub-amt-input">'+fmtEUR(s.importo)+'</span>'+
@@ -2525,7 +2537,7 @@ function renderSubscriptions(){
   });
   wrap.querySelectorAll('[data-action="editsub"]').forEach(function(row){
     row.addEventListener('click', function(e){
-      if(e.target.closest('.row-del') || e.target.closest('.paid-toggle-btn')) return;
+      if(e.target.closest('.row-del') || e.target.closest('.paid-toggle-btn') || e.target.closest('.sub-arrears-badge')) return;
       openSubModal(Number(row.dataset.idx));
     });
   });
@@ -2533,6 +2545,39 @@ function renderSubscriptions(){
     btn.addEventListener('click', function(e){
       e.stopPropagation();
       deleteSubscription(Number(btn.dataset.idx));
+    });
+  });
+  wrap.querySelectorAll('[data-action="showarrears"]').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      openSubArrearsModal(btn.dataset.subid);
+    });
+  });
+}
+function openSubArrearsModal(subId){
+  var sub = state.subscriptions.find(function(s){ return s.id===subId; });
+  if(!sub) return;
+  var todayMid = new Date(); todayMid.setHours(0,0,0,0);
+  var arrears = computeSubArrears(sub, todayMid);
+  var bodyHtml = arrears.map(function(d){
+    var label = d.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+    label = label.charAt(0).toUpperCase()+label.slice(1);
+    return '<div class="tx-row"><div class="tx-mid"><div class="tx-name">'+escapeHtml(label)+'</div><div class="tx-tag">'+fmtEUR(sub.importo)+'</div></div>'+
+      '<button class="mini-btn" data-period="'+periodKey(d)+'" data-action="paysubarrear">Segna pagato</button></div>';
+  }).join('');
+  document.getElementById('modalTitle').textContent = 'Arretrati — '+sub.nome;
+  document.getElementById('modalBody').innerHTML = bodyHtml || '<p class="empty">Nessun arretrato.</p>';
+  document.getElementById('modalConfirm').style.display = 'none';
+  document.getElementById('modalCancel').textContent = 'Chiudi';
+  modalOnSubmit = null;
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('modalBody').querySelectorAll('[data-action="paysubarrear"]').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      var parts = btn.dataset.period.split('-');
+      var d = new Date(Number(parts[0]), Number(parts[1])-1, 1);
+      await toggleSubPaid(subId, d);
+      closeModal();
+      renderAll();
     });
   });
 }
@@ -2559,16 +2604,20 @@ function openSubModal(idx, defaultGiorno){
   openModal(s ? 'Modifica abbonamento' : 'Nuovo abbonamento', [
     {id:'nome', label:'Nome', type:'text', placeholder:'es. Netflix', value: s ? s.nome : ''},
     {id:'importo', label:'Importo (€)', type:'number', step:'0.01', placeholder:'0.00', value: s ? s.importo : ''},
-    {id:'giorno', label:'Giorno del mese (1-31)', type:'number', step:'1', value: s ? s.giorno : (defaultGiorno || '1')}
+    {id:'giorno', label:'Giorno del mese (1-31)', type:'number', step:'1', value: s ? s.giorno : (defaultGiorno || '1')},
+    {id:'condivisoCon', label:'Diviso con (opzionale)', type:'text', placeholder:'es. Nome persona', value: s ? s.condivisoCon : ''},
+    {id:'quotaAltrui', label:'Quota della persona (€)', type:'number', step:'0.01', placeholder:'0.00', value: (s && s.quotaAltrui!=null) ? s.quotaAltrui : ''}
   ], async function(v){
     if(!v.nome || !v.importo || isNaN(Number(v.importo))) return false;
     var giorno = Math.min(31, Math.max(1, Number(v.giorno)||1));
+    var condivisoCon = (v.condivisoCon||'').trim();
+    var quotaAltrui = condivisoCon && v.quotaAltrui ? Number(v.quotaAltrui) : null;
     if(s){
-      s.nome = v.nome; s.importo = Number(v.importo); s.giorno = giorno;
+      s.nome = v.nome; s.importo = Number(v.importo); s.giorno = giorno; s.condivisoCon = condivisoCon; s.quotaAltrui = quotaAltrui;
       renderAll();
-      await dbUpdate('subscriptions', s.id, {nome:v.nome, importo:Number(v.importo), giorno:giorno});
+      await dbUpdate('subscriptions', s.id, {nome:v.nome, importo:Number(v.importo), giorno:giorno, condiviso_con:condivisoCon||null, quota_altrui:quotaAltrui});
     } else {
-      var row = await dbInsert('subscriptions', {nome:v.nome, importo:Number(v.importo), giorno:giorno});
+      var row = await dbInsert('subscriptions', {nome:v.nome, importo:Number(v.importo), giorno:giorno, condiviso_con:condivisoCon||null, quota_altrui:quotaAltrui});
       if(!row) return false;
       state.subscriptions.push(mapSub(row));
       renderAll();
@@ -3339,6 +3388,43 @@ var calendarSelectedDate = null;
 
 function periodKey(date){ return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0'); }
 function isSubPaid(subId, date){ return state.paidSubscriptions.indexOf(subId+'|'+periodKey(date))!==-1; }
+/* quando un abbonamento diviso viene segnato pagato, genera in automatico la
+   ricevuta per la quota dell'altra persona; il collegamento (per poterla
+   rimuovere se si annulla il pagamento) resta sul dispositivo, non su Supabase,
+   perché tenerne traccia in tabella richiederebbe una colonna in più */
+var SUB_SPLIT_LINKS_KEY = 'subSplitReceivableLinks';
+function loadSubSplitLinks(){
+  try{ return JSON.parse(localStorage.getItem(SUB_SPLIT_LINKS_KEY)) || {}; }catch(e){ return {}; }
+}
+var subSplitLinks = loadSubSplitLinks();
+function saveSubSplitLinks(){
+  try{ localStorage.setItem(SUB_SPLIT_LINKS_KEY, JSON.stringify(subSplitLinks)); }catch(e){}
+}
+async function creaRicevutaSplitSeServe(subId, periodo){
+  var sub = state.subscriptions.find(function(s){ return s.id===subId; });
+  if(!sub || !sub.condivisoCon || !sub.quotaAltrui) return;
+  var linkKey = subId+'|'+periodo;
+  if(subSplitLinks[linkKey]) return;
+  var meseLabel = new Date(periodo+'-01T00:00:00').toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  var cliente = sub.condivisoCon+' — '+sub.nome+' ('+meseLabel+')';
+  var row = await dbInsert('receivables', {cliente:cliente, importo:sub.quotaAltrui, stato:'in attesa', tx_id:null});
+  if(!row) return;
+  state.receivables.push(mapReceivable(row));
+  subSplitLinks[linkKey] = row.id;
+  saveSubSplitLinks();
+}
+async function rimuoviRicevutaSplitSeCreata(subId, periodo){
+  var linkKey = subId+'|'+periodo;
+  var recId = subSplitLinks[linkKey];
+  if(!recId) return;
+  var idx = state.receivables.findIndex(function(r){ return r.id===recId; });
+  if(idx!==-1 && state.receivables[idx].stato!=='incassato'){
+    state.receivables.splice(idx,1);
+    await dbDelete('receivables', recId);
+  }
+  delete subSplitLinks[linkKey];
+  saveSubSplitLinks();
+}
 async function toggleSubPaid(subId, date){
   var periodo = periodKey(date);
   var key = subId+'|'+periodo;
@@ -3347,15 +3433,31 @@ async function toggleSubPaid(subId, date){
     state.paidSubscriptions.push(key);
     try{ await sb.from('paid_subscriptions').insert({subscription_id:subId, periodo:periodo}); showSaved(); }
     catch(e){ console.error('Errore segna pagato', e); }
+    await creaRicevutaSplitSeServe(subId, periodo);
   } else {
     state.paidSubscriptions.splice(idx,1);
     try{ await sb.from('paid_subscriptions').delete().eq('subscription_id',subId).eq('periodo',periodo); showSaved(); }
     catch(e){ console.error('Errore rimuovi pagato', e); }
+    await rimuoviRicevutaSplitSeCreata(subId, periodo);
   }
 }
 function subStatus(sub, occDate, todayMid){
   if(isSubPaid(sub.id, occDate)) return 'paid';
   return occDate < todayMid ? 'overdue' : 'due';
+}
+/* mesi passati non pagati, escluso quello corrente (già mostrato dal countdown);
+   non si spinge più indietro del mese di creazione, per non inventare arretrati
+   su periodi in cui l'abbonamento non esisteva ancora */
+function computeSubArrears(sub, refDate){
+  var arrears = [];
+  var createdAt = sub.createdAt ? new Date(sub.createdAt) : null;
+  var createdMonthStart = createdAt ? new Date(createdAt.getFullYear(), createdAt.getMonth(), 1) : null;
+  for(var i=1;i<=6;i++){
+    var d = new Date(refDate.getFullYear(), refDate.getMonth()-i, 1);
+    if(createdMonthStart && d < createdMonthStart) continue;
+    if(!isSubPaid(sub.id, d)) arrears.push(d);
+  }
+  return arrears;
 }
 
 /* Il calendario vive in due posti con lo stesso stato (calendarViewDate/calendarSelectedDate):
