@@ -408,8 +408,21 @@
   /* nome del debito e importo/percentuale su due righe, stesso motivo di sopra */
   .prog-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
 
-  /* investment items (physical) */
-  .invitem-row{background:rgba(255,255,255,0.55);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;font-size:13px;}
+  /* Abbonamenti: stessa superficie "materiale" già usata per Debiti/Da ricevere,
+     tinta neutra (accent) dato che qui non c'è un verde/rosso semantico chiaro */
+  #subsCard .sub-row{
+    background:rgba(76,92,116,0.05);border-radius:16px;padding:13px 14px;
+    margin-bottom:8px;border-bottom:none;
+    transition:background .15s ease, transform .1s ease;
+  }
+  #subsCard .sub-row:last-child{margin-bottom:0;}
+  #subsCard .sub-row:active{transform:scale(0.985);}
+  #subsCard .paid-toggle-btn{transition:transform .08s ease, background .15s ease, border-color .15s ease;}
+  #subsCard .paid-toggle-btn:active{transform:scale(0.88);}
+
+  /* investment items (physical): il tocco non dava alcun riscontro visivo */
+  .invitem-row{background:rgba(255,255,255,0.55);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;font-size:13px;cursor:pointer;transition:transform .08s ease, background .15s ease;}
+  .invitem-row:active{transform:scale(0.985);background:rgba(255,255,255,0.8);}
   .invitem-row:last-child{margin-bottom:0;}
   .invitem-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;}
   .invitem-name{font-weight:500;flex:1;min-width:0;}
@@ -1179,6 +1192,14 @@
         <p class="settings-row-sub">Avvisi per i promemoria in calendario</p>
       </div>
       <button class="ios-toggle" id="settingsNotifReminderToggle" type="button" role="switch" aria-checked="false"><span class="ios-toggle-knob"></span></button>
+    </div>
+    <p class="sub-heading">Dati</p>
+    <div class="settings-row">
+      <div>
+        <p class="settings-row-title">Esporta transazioni</p>
+        <p class="settings-row-sub">Scarica tutto lo storico in un file CSV, come backup</p>
+      </div>
+      <button class="mini-btn" id="settingsExportCsvBtn" type="button">Esporta</button>
     </div>
   </div>
 </div>
@@ -3781,6 +3802,34 @@ document.querySelectorAll('.ios-toggle').forEach(function(t){
     var on = t.classList.toggle('on');
     t.setAttribute('aria-checked', on ? 'true' : 'false');
   });
+});
+/* esporta le transazioni in CSV, come backup leggibile fuori dall'app */
+document.getElementById('settingsExportCsvBtn').addEventListener('click', function(){
+  var rows = [['Data','Ora','Tipo','Categoria','Descrizione','Importo','Conto','Fonte']];
+  state.transactions.slice().sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); }).forEach(function(t){
+    var conto = t.contoId ? state.accounts.find(function(a){ return a.id===t.contoId; }) : null;
+    var ora = t.createdAt ? new Date(t.createdAt).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : '';
+    rows.push([
+      t.data||'', ora, t.tipo==='entrata' ? 'Entrata' : 'Uscita', t.categoria||'', t.descrizione||'',
+      String(t.importo||0).replace('.',','), conto ? conto.nome : '', t.fonte||''
+    ]);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(cell){
+      var s = String(cell);
+      return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(';');
+  }).join('\r\n');
+  var blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'transazioni_'+todayISO()+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV esportato ('+(rows.length-1)+' transazioni)', 2200);
 });
 /* ---------- recupero password (arrivo dal link inviato via email) ---------- */
 function eArrivoDaRecuperoPassword(){
