@@ -187,7 +187,8 @@
 
   /* budget rings (capsule liquid-fill, mobile home) */
   #mobileBudgetRingsCard{overflow-x:hidden;}
-  .budget-rings{display:flex;gap:16px;margin-top:20px;margin-left:-40px;margin-right:-40px;overflow-x:auto;overflow-y:hidden;touch-action:none;padding:2px 40px 28px;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none;}
+  .budget-rings-viewport{overflow:hidden;margin-top:20px;margin-left:-40px;margin-right:-40px;padding:2px 40px 28px;}
+  .budget-rings{display:inline-flex;gap:16px;justify-content:flex-start;will-change:transform;}
   .budget-rings::-webkit-scrollbar{display:none;}
   .ring-item{flex:1 1 0;min-width:70px;max-width:130px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;}
   .ring-item:active{opacity:.7;}
@@ -880,7 +881,9 @@
 
         <div class="mobile-only-home hero-merge-section" id="mobileBudgetRingsCard">
           <p class="card-title">Budget del mese</p>
-          <div class="budget-rings" id="budgetRingsRow"></div>
+          <div class="budget-rings-viewport" id="budgetRingsViewport">
+            <div class="budget-rings" id="budgetRingsRow"></div>
+          </div>
         </div>
       </div>
 
@@ -2485,6 +2488,7 @@ function renderMobileQuickRow(){
 }
 function renderBudgetRingsMobile(){
   var wrap = document.getElementById('budgetRingsRow');
+  if(window.resetBudgetRingsScroll) window.resetBudgetRingsScroll();
   if(state.budgets.length===0){
     wrap.innerHTML = '<p class="empty">Nessuna categoria di budget.</p>';
     return;
@@ -2539,23 +2543,26 @@ function openBudgetCategorySheet(categoria){
   document.getElementById('budgetCategorySheetBody').innerHTML = itemsHtml;
   openSheet('budgetCategorySheetOverlay');
 }
-/* touch-action:none sull'elemento = nessuna gestione nativa in nessuna direzione;
-   gestiamo noi entrambi gli assi a mano, così non c'è ambiguità/gara con il motore di Safari */
+/* niente overflow-x nativo: il "viewport" fa solo da finestra (overflow:hidden, non è uno
+   scroll-container per il motore di Safari), la riga si sposta con transform gestito a mano.
+   Il verticale non viene mai toccato: senza uno scroll-container qui sopra, il gesto verticale
+   arriva naturalmente alla pagina senza bisogno di alcun intervento. */
 (function(){
-  var el = document.getElementById('budgetRingsRow');
-  if(!el) return;
-  var vScroller = document.querySelector('.app-shell');
-  var startX = 0, startY = 0, startScrollLeft = 0, startPageScrollTop = 0, axisLocked = null, active = false;
-  el.addEventListener('touchstart', function(e){
+  var viewport = document.getElementById('budgetRingsViewport');
+  var track = document.getElementById('budgetRingsRow');
+  if(!viewport || !track) return;
+  var startX = 0, startY = 0, startOffset = 0, offset = 0, axisLocked = null, active = false;
+  function maxOffset(){ return Math.max(0, track.scrollWidth - viewport.clientWidth); }
+  function clamp(v){ var max = maxOffset(); return Math.min(0, Math.max(-max, v)); }
+  viewport.addEventListener('touchstart', function(e){
     if(e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
-    startScrollLeft = el.scrollLeft;
-    startPageScrollTop = vScroller ? vScroller.scrollTop : window.scrollY;
+    startOffset = offset;
     axisLocked = null;
     active = true;
   }, {passive:true});
-  el.addEventListener('touchmove', function(e){
+  viewport.addEventListener('touchmove', function(e){
     if(!active || e.touches.length !== 1) return;
     var dx = e.touches[0].clientX - startX;
     var dy = e.touches[0].clientY - startY;
@@ -2564,15 +2571,13 @@ function openBudgetCategorySheet(categoria){
     }
     if(axisLocked==='x'){
       e.preventDefault();
-      el.scrollLeft = startScrollLeft - dx;
-    } else if(axisLocked==='y'){
-      e.preventDefault();
-      if(vScroller) vScroller.scrollTop = startPageScrollTop - dy;
-      else window.scrollTo(0, startPageScrollTop - dy);
+      offset = clamp(startOffset + dx);
+      track.style.transform = 'translateX('+offset+'px)';
     }
   }, {passive:false});
-  el.addEventListener('touchend', function(){ active = false; axisLocked = null; }, {passive:true});
-  el.addEventListener('touchcancel', function(){ active = false; axisLocked = null; }, {passive:true});
+  viewport.addEventListener('touchend', function(){ active = false; axisLocked = null; }, {passive:true});
+  viewport.addEventListener('touchcancel', function(){ active = false; axisLocked = null; }, {passive:true});
+  window.resetBudgetRingsScroll = function(){ offset = 0; track.style.transform = 'translateX(0px)'; };
 })();
 
 /* ---------- render: subscriptions ---------- */
