@@ -2552,7 +2552,13 @@ function openBudgetCategorySheet(categoria){
   var track = document.getElementById('budgetRingsRow');
   if(!viewport || !track) return;
   var startX = 0, startY = 0, startOffset = 0, offset = 0, axisLocked = null, active = false;
-  function maxOffset(){ return Math.max(0, track.scrollWidth - viewport.clientWidth); }
+  function maxOffset(){
+    var cs = getComputedStyle(viewport);
+    var padL = parseFloat(cs.paddingLeft)||0;
+    var padR = parseFloat(cs.paddingRight)||0;
+    var visibleWidth = viewport.clientWidth - padL - padR;
+    return Math.max(0, track.scrollWidth - visibleWidth);
+  }
   function clamp(v){ var max = maxOffset(); return Math.min(0, Math.max(-max, v)); }
   viewport.addEventListener('touchstart', function(e){
     if(e.touches.length !== 1) return;
