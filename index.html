@@ -437,6 +437,31 @@
   #subsCard .paid-toggle-btn{transition:transform .08s ease, background .15s ease, border-color .15s ease;}
   #subsCard .paid-toggle-btn:active{transform:scale(0.88);}
 
+  /* Budget, Conti, Transazioni: stessa superficie "materiale" già usata per
+     Debiti/Da ricevere/Abbonamenti, tinta neutra (accent) coerente con Abbonamenti */
+  #budgetCard .prog-row{
+    background:rgba(76,92,116,0.05);border-radius:16px;padding:15px;
+    margin-bottom:8px;transition:background .15s ease, transform .1s ease;
+  }
+  #budgetCard .prog-row:last-child{margin-bottom:0;}
+  #budgetCard .prog-row:active{transform:scale(0.985);}
+
+  #accountsCard .account-row{
+    background:rgba(76,92,116,0.05);border-radius:16px;padding:13px 14px;
+    margin-bottom:8px;border-bottom:none;
+    transition:background .15s ease, transform .1s ease;
+  }
+  #accountsCard .account-row:last-child{margin-bottom:0;}
+  #accountsCard .account-row:active{transform:scale(0.985);}
+
+  #txCard .tx-row{
+    background:rgba(76,92,116,0.05);border-radius:16px;padding:12px 14px;
+    margin-bottom:8px;border-bottom:none;
+    transition:background .15s ease, transform .1s ease;
+  }
+  #txCard .tx-row:last-child{margin-bottom:0;}
+  #txCard .tx-row:active{transform:scale(0.985);}
+
   /* investment items (physical): il tocco non dava alcun riscontro visivo */
   .invitem-row{background:rgba(255,255,255,0.55);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;font-size:13px;cursor:pointer;transition:transform .08s ease, background .15s ease;}
   .invitem-row:active{transform:scale(0.985);background:rgba(255,255,255,0.8);}
