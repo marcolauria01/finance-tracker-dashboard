@@ -187,7 +187,7 @@
 
   /* budget rings (capsule liquid-fill, mobile home) */
   #mobileBudgetRingsCard{overflow-x:hidden;}
-  .budget-rings{display:flex;gap:16px;margin-top:20px;margin-left:-40px;margin-right:-40px;overflow-x:auto;overflow-y:hidden;touch-action:pan-y;padding:2px 40px 28px;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none;}
+  .budget-rings{display:flex;gap:16px;margin-top:20px;margin-left:-40px;margin-right:-40px;overflow-x:auto;overflow-y:hidden;touch-action:none;padding:2px 40px 28px;justify-content:flex-start;-ms-overflow-style:none;scrollbar-width:none;}
   .budget-rings::-webkit-scrollbar{display:none;}
   .ring-item{flex:1 1 0;min-width:70px;max-width:130px;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;}
   .ring-item:active{opacity:.7;}
@@ -2539,17 +2539,19 @@ function openBudgetCategorySheet(categoria){
   document.getElementById('budgetCategorySheetBody').innerHTML = itemsHtml;
   openSheet('budgetCategorySheetOverlay');
 }
-/* scroll orizzontale gestito a mano: il verticale resta 100% nativo (touch-action:pan-y sull'elemento),
-   così un dito che parte sopra i grafici e si muove in verticale non viene mai intercettato */
+/* touch-action:none sull'elemento = nessuna gestione nativa in nessuna direzione;
+   gestiamo noi entrambi gli assi a mano, così non c'è ambiguità/gara con il motore di Safari */
 (function(){
   var el = document.getElementById('budgetRingsRow');
   if(!el) return;
-  var startX = 0, startY = 0, startScrollLeft = 0, axisLocked = null, active = false;
+  var vScroller = document.querySelector('.app-shell');
+  var startX = 0, startY = 0, startScrollLeft = 0, startPageScrollTop = 0, axisLocked = null, active = false;
   el.addEventListener('touchstart', function(e){
     if(e.touches.length !== 1) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     startScrollLeft = el.scrollLeft;
+    startPageScrollTop = vScroller ? vScroller.scrollTop : window.scrollY;
     axisLocked = null;
     active = true;
   }, {passive:true});
@@ -2563,6 +2565,10 @@ function openBudgetCategorySheet(categoria){
     if(axisLocked==='x'){
       e.preventDefault();
       el.scrollLeft = startScrollLeft - dx;
+    } else if(axisLocked==='y'){
+      e.preventDefault();
+      if(vScroller) vScroller.scrollTop = startPageScrollTop - dy;
+      else window.scrollTo(0, startPageScrollTop - dy);
     }
   }, {passive:false});
   el.addEventListener('touchend', function(){ active = false; axisLocked = null; }, {passive:true});
