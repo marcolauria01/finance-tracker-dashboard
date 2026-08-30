@@ -1996,7 +1996,11 @@ function openAccountModal(idx){
     {id:'nome', label:'Nome conto', type:'text', placeholder:'es. Revolut', value: a?a.nome:''},
     {id:'saldo', label:'Saldo attuale (€)', type:'number', step:'0.01', placeholder:'0.00', value: a!=null?a.saldo:''}
   ], async function(v){
-    if(!v.nome || v.saldo==='' || isNaN(Number(v.saldo))) return false;
+    var nome = (v.nome||'').trim();
+    var saldoStr = (v.saldo==null?'':String(v.saldo)).trim();
+    if(!nome){ showToast('Inserisci un nome per il conto', 2200, true); return false; }
+    if(saldoStr==='' || isNaN(Number(saldoStr))){ showToast('Inserisci un saldo valido (anche 0)', 2200, true); return false; }
+    v.nome = nome; v.saldo = saldoStr;
     if(a){
       a.nome=v.nome; a.saldo=Number(v.saldo);
       renderAll();
