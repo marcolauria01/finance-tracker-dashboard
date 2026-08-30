@@ -1451,7 +1451,10 @@ async function loadFromSupabase(){
     } else {
       CATS = CATS_DEFAULT.slice();
     }
-  }catch(e){ console.error('Errore caricamento dati da Supabase', e); }
+  }catch(e){
+    console.error('Errore caricamento dati da Supabase', e);
+    showToast('Errore nel caricamento dei dati. Controlla la connessione e riprova.', 4200, true);
+  }
 }
 
 /* ---------- allineamento saldi per le transazioni arrivate dal Comando Rapido ----------
@@ -2022,10 +2025,11 @@ document.getElementById('transferBtn').addEventListener('click', function(){
     {id:'verso', label:'A', type:'select', value: state.accounts[1]?state.accounts[1].id:'', options: state.accounts.map(function(a){ return {value:a.id, label:a.nome}; })},
     {id:'importo', label:'Importo (€)', type:'number', step:'0.01', placeholder:'0.00'}
   ], async function(v){
-    if(!v.importo || isNaN(Number(v.importo)) || v.da===v.verso) return false;
+    if(v.da===v.verso){ showToast('Scegli due conti diversi', 2200, true); return false; }
+    if(!v.importo || isNaN(Number(v.importo)) || Number(v.importo)<=0){ showToast('Inserisci un importo valido', 2200, true); return false; }
     var from = state.accounts.find(function(a){ return a.id===v.da; });
     var to = state.accounts.find(function(a){ return a.id===v.verso; });
-    if(!from || !to) return false;
+    if(!from || !to){ showToast('Seleziona entrambi i conti', 2200, true); return false; }
     from.saldo = (Number(from.saldo)||0) - Number(v.importo);
     to.saldo = (Number(to.saldo)||0) + Number(v.importo);
     renderAll();
@@ -2206,7 +2210,8 @@ function openReceivableModal(idx){
     {id:'cliente', label:'Cliente', type:'text', placeholder:'es. Corrado Lagrange', value: r ? r.cliente : ''},
     {id:'importo', label:'Importo (€)', type:'number', step:'0.01', placeholder:'0.00', value: r ? r.importo : ''}
   ], async function(v){
-    if(!v.cliente || !v.importo || isNaN(Number(v.importo))) return false;
+    if(!v.cliente){ showToast('Inserisci il nome del cliente', 2200, true); return false; }
+    if(!v.importo || isNaN(Number(v.importo))){ showToast('Inserisci un importo valido', 2200, true); return false; }
     if(r){
       r.cliente = v.cliente; r.importo = Number(v.importo);
       renderAll();
@@ -2301,7 +2306,7 @@ function renderDebts(){
       openModal('Registra pagamento', [
         {id:'importo', label:'Importo pagato ora (€)', type:'number', step:'0.01', placeholder:'0.00'}
       ], async function(v){
-        if(!v.importo || isNaN(Number(v.importo))) return false;
+        if(!v.importo || isNaN(Number(v.importo))){ showToast('Inserisci un importo valido', 2200, true); return false; }
         var deb = state.debts[idx];
         deb.pagato = Math.min(Number(deb.totale)||0, (Number(deb.pagato)||0)+Number(v.importo));
         renderAll();
@@ -2335,7 +2340,8 @@ function openDebtModal(idx){
     {id:'totale', label:'Importo totale (€)', type:'number', step:'0.01', placeholder:'0.00', value: d ? d.totale : ''},
     {id:'pagato', label:'Già restituito (€)', type:'number', step:'0.01', placeholder:'0.00', value: d ? d.pagato : '0'}
   ], async function(v){
-    if(!v.creditore || !v.totale || isNaN(Number(v.totale))) return false;
+    if(!v.creditore){ showToast('Inserisci a chi devi il debito', 2200, true); return false; }
+    if(!v.totale || isNaN(Number(v.totale))){ showToast('Inserisci un importo totale valido', 2200, true); return false; }
     if(d){
       d.creditore = v.creditore; d.totale = Number(v.totale); d.pagato = Number(v.pagato)||0;
       renderAll();
@@ -2467,7 +2473,8 @@ function openBudgetModal(idx){
     {id:'limite', label:'Limite mensile (€)', type:'number', step:'0.01', placeholder:'0.00', value: b ? b.limite : ''}
   ], async function(v){
     var categoria = (v.categoria||'').trim();
-    if(!categoria || !v.limite || isNaN(Number(v.limite))) return false;
+    if(!categoria){ showToast('Inserisci un nome per la categoria', 2200, true); return false; }
+    if(!v.limite || isNaN(Number(v.limite))){ showToast('Inserisci un limite mensile valido', 2200, true); return false; }
     await assicuraCategoria(categoria);
     if(v.icona) saveCategoryIconOverride(categoria, v.icona);
     if(b){
@@ -2758,7 +2765,8 @@ function openSubModal(idx, defaultGiorno){
     {id:'condivisoCon', label:'Diviso con (opzionale)', type:'text', placeholder:'es. Nome persona', value: s ? s.condivisoCon : ''},
     {id:'quotaAltrui', label:'Quota della persona (€)', type:'number', step:'0.01', placeholder:'0.00', value: (s && s.quotaAltrui!=null) ? s.quotaAltrui : ''}
   ], async function(v){
-    if(!v.nome || !v.importo || isNaN(Number(v.importo))) return false;
+    if(!v.nome){ showToast('Inserisci il nome dell\'abbonamento', 2200, true); return false; }
+    if(!v.importo || isNaN(Number(v.importo))){ showToast('Inserisci un importo valido', 2200, true); return false; }
     var giorno = Math.min(31, Math.max(1, Number(v.giorno)||1));
     var condivisoCon = (v.condivisoCon||'').trim();
     var quotaAltrui = condivisoCon && v.quotaAltrui ? Number(v.quotaAltrui) : null;
@@ -2927,7 +2935,7 @@ function renderInvestItems(){
       openModal('Segna come venduto', [
         {id:'prezzoVendita', label:'Prezzo di vendita (€)', type:'number', step:'0.01', placeholder:'0.00'}
       ], async function(v){
-        if(!v.prezzoVendita || isNaN(Number(v.prezzoVendita))) return false;
+        if(!v.prezzoVendita || isNaN(Number(v.prezzoVendita))){ showToast('Inserisci un prezzo di vendita valido', 2200, true); return false; }
         var item = state.investments[idx];
         item.prezzoVendita = Number(v.prezzoVendita);
         renderAll();
@@ -3002,17 +3010,17 @@ function openInvestModal(idx){
       {value:'Altro', label:'Altro'}
     ]}
   ], async function(v){
-    if(!v.nome) return false;
+    if(!v.nome){ showToast('Inserisci il nome dell\'investimento', 2200, true); return false; }
     var updated;
     if(v.tipo==='finanziario'){
-      if(!v.valore || isNaN(Number(v.valore))) return false;
+      if(!v.valore || isNaN(Number(v.valore))){ showToast('Inserisci un valore attuale valido', 2200, true); return false; }
       updated = {nome:v.nome, tipo:'finanziario', valore:Number(v.valore), versatoFinora:null, giorno:null, importoRicorrente:null, categoria:null, prezzoAcquisto:null, dataAcquisto:null, prezzoVendita:null};
     } else if(v.tipo==='pac'){
-      if(!v.valorePac || isNaN(Number(v.valorePac))) return false;
+      if(!v.valorePac || isNaN(Number(v.valorePac))){ showToast('Inserisci un valore attuale valido', 2200, true); return false; }
       var giorno = Math.min(31, Math.max(1, Number(v.giorno)||1));
       updated = {nome:v.nome, tipo:'pac', valore:Number(v.valorePac), versatoFinora:Number(v.versatoFinora)||0, giorno:giorno, importoRicorrente:Number(v.importoRicorrente)||0, categoria:null, prezzoAcquisto:null, dataAcquisto:null, prezzoVendita:null};
     } else {
-      if(!v.prezzoAcquisto || isNaN(Number(v.prezzoAcquisto))) return false;
+      if(!v.prezzoAcquisto || isNaN(Number(v.prezzoAcquisto))){ showToast('Inserisci un prezzo di acquisto valido', 2200, true); return false; }
       updated = {nome:v.nome, tipo:'fisico', valore:null, versatoFinora:null, giorno:null, importoRicorrente:null, categoria:v.categoria||'Altro', prezzoAcquisto:Number(v.prezzoAcquisto), dataAcquisto:v.dataAcquisto||todayISO(), prezzoVendita: inv ? inv.prezzoVendita : null};
     }
     if(inv){
@@ -3514,7 +3522,8 @@ function openGoalModal(idx){
     {id:'target', label:'Importo obiettivo (€)', type:'number', step:'0.01', placeholder:'0.00', value: g ? g.target : ''},
     {id:'current', label:'Già accantonato (€)', type:'number', step:'0.01', value: g ? g.current : '0', dependsOn:{field:'tipo', value:'risparmio'}}
   ], async function(v){
-    if(!v.nome || !v.target || isNaN(Number(v.target))) return false;
+    if(!v.nome){ showToast('Inserisci il nome dell\'obiettivo', 2200, true); return false; }
+    if(!v.target || isNaN(Number(v.target))){ showToast('Inserisci un importo obiettivo valido', 2200, true); return false; }
     var current = v.tipo==='risparmio' ? (Number(v.current)||0) : 0;
     if(g){
       g.nome = v.nome; g.tipo = v.tipo; g.target = Number(v.target); g.current = current;
@@ -3582,12 +3591,12 @@ async function toggleSubPaid(subId, date){
   if(idx===-1){
     state.paidSubscriptions.push(key);
     try{ await sb.from('paid_subscriptions').insert({subscription_id:subId, periodo:periodo}); showSaved(); }
-    catch(e){ console.error('Errore segna pagato', e); }
+    catch(e){ console.error('Errore segna pagato', e); showToast('Errore nel salvataggio, riprova', 3000, true); }
     await creaRicevutaSplitSeServe(subId, periodo);
   } else {
     state.paidSubscriptions.splice(idx,1);
     try{ await sb.from('paid_subscriptions').delete().eq('subscription_id',subId).eq('periodo',periodo); showSaved(); }
-    catch(e){ console.error('Errore rimuovi pagato', e); }
+    catch(e){ console.error('Errore rimuovi pagato', e); showToast('Errore nel salvataggio, riprova', 3000, true); }
     await rimuoviRicevutaSplitSeCreata(subId, periodo);
   }
 }
@@ -3741,7 +3750,7 @@ function openCalDayModal(iso){
       {id:'testo', label:'Testo', type:'text', placeholder:'es. Rinnovo assicurazione auto'},
       {id:'data', label:'Data', type:'date', value: iso}
     ], async function(v){
-      if(!v.testo) return false;
+      if(!v.testo){ showToast('Inserisci il testo del promemoria', 2200, true); return false; }
       var row = await dbInsert('reminders', {testo:v.testo, data:v.data||iso});
       if(!row) return false;
       state.reminders.push(mapReminder(row));
